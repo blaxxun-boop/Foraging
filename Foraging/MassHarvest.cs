@@ -14,7 +14,7 @@ public static class MassHarvest
 		[HarmonyPriority(Priority.LowerThanNormal)]
 		private static void Postfix(Pickable __instance)
 		{
-			if (isPicked || Foraging.massPickingRadius.Value == 0 || __instance.m_respawnTimeMinutes == 0 || __instance.m_itemPrefab.name == "Wood")
+			if (isPicked || Foraging.massPickingRadius.Value == 0 || !Foraging.isForaging(__instance))
 			{
 				return;
 			}
@@ -26,7 +26,7 @@ public static class MassHarvest
 			// ReSharper disable once Unity.PreferNonAllocApi
 			foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, Player.m_localPlayer.GetSkillFactor("Foraging") * Foraging.massPickingRadius.Value, plantMask))
 			{
-				if ((collider.GetComponent<Pickable>() ?? collider.transform.parent?.GetComponent<Pickable>()) is { } pickable && pickable != __instance && pickable.m_respawnTimeMinutes > 0 && pickable.m_itemPrefab.name != "Wood" && !pickable.m_picked)
+				if ((collider.GetComponent<Pickable>() ?? collider.transform.parent?.GetComponent<Pickable>()) is { } pickable && pickable != __instance && Foraging.isForaging(pickable) && !pickable.m_picked)
 				{
 					pickable.Interact(Player.m_localPlayer, false, false);
 				}

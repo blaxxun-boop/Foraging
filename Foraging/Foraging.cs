@@ -16,12 +16,13 @@ namespace Foraging;
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.0";
+	private const string ModVersion = "1.0.1";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
 
 	private static ConfigEntry<Toggle> serverConfigLocked = null!;
+	private static ConfigEntry<Scope> foragingScope = null!;
 	private static ConfigEntry<float> foragingYieldFactor = null!;
 	private static ConfigEntry<int> respawnDisplayMinimumLevel = null!;
 	public static ConfigEntry<int> massPickingRadius = null!;
@@ -46,6 +47,13 @@ public class Foraging : BaseUnityPlugin
 		On = 1,
 		Off = 0
 	}
+	
+	private enum Scope
+	{
+		Foraging,
+		NoCrops,
+		Everything
+	}
 
 	private class ConfigurationManagerAttributes
 	{
@@ -64,6 +72,7 @@ public class Foraging : BaseUnityPlugin
 
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
 		configSync.AddLockingConfigEntry(serverConfigLocked);
+		foragingScope = config("2 - Foraging", "Foraging Scope", Scope.Foraging, new ConfigDescription("Foraging: Only applies to berries and mushrooms and the like.\nNo Crops: Applies to all pickables except for crops planted by a player.\nEverything: Applies to all pickables."));
 		foragingYieldFactor = config("2 - Foraging", "Foraging Yield Factor", 2f, new ConfigDescription("Foraging yield factor at skill level 100.", new AcceptableValueRange<float>(1f, 5f)));
 		respawnDisplayMinimumLevel = config("2 - Foraging", "Minimum Level Respawn Display", 30, new ConfigDescription("Skill level required to see a timer when pickables will respawn. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
 		massPickingRadius = config("2 - Foraging", "Maximum Mass Picking Range", 10, new ConfigDescription("Mass picking radius at skill level 100 in meters.", new AcceptableValueRange<int>(0, 20)));
@@ -78,6 +87,24 @@ public class Foraging : BaseUnityPlugin
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
 		harmony.PatchAll(assembly);
+	}
+
+	public static bool isForaging(Pickable pickable)
+	{
+		switch (foragingScope.Value)
+		{
+			case Scope.Foraging:
+				return pickable.m_respawnTimeMinutes > 0 && pickable.m_itemPrefab.name != "Wood";
+			
+			case Scope.NoCrops:
+				int itemLayer = LayerMask.NameToLayer("item");
+				int plantLayer = LayerMask.NameToLayer("piece_nonsolid");
+				int layer = pickable.gameObject.layer; 
+				return layer != plantLayer && (layer != itemLayer || pickable.m_amount <= 1);
+			
+			default:
+				return true;
+		}
 	}
 
 	[HarmonyPatch(typeof(Player), nameof(Player.Update))]
@@ -106,7 +133,7 @@ public class Foraging : BaseUnityPlugin
 	{
 		private static void Prefix(Pickable __instance)
 		{
-			if (__instance.m_respawnTimeMinutes > 0 && __instance.m_nview.IsValid())
+			if (__instance.m_nview.IsValid() && isForaging(__instance))
 			{
 				__instance.m_nview.GetZDO().Set("Foraging Skill Level", Player.m_localPlayer.GetSkillFactor("Foraging"));
 			}
@@ -124,7 +151,7 @@ public class Foraging : BaseUnityPlugin
 				return;
 			}
 
-			if (__instance.m_respawnTimeMinutes > 0 && __instance.m_nview.IsValid() && __instance.m_itemPrefab.name != "Wood")
+			if (__instance.m_nview.IsValid() && isForaging(__instance))
 			{
 				if (Player.m_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.m_userID == sender) is { } player)
 				{
@@ -143,7 +170,7 @@ public class Foraging : BaseUnityPlugin
 
 		private static void Postfix(Pickable __instance, long sender, int? __state)
 		{
-			if (__instance.m_nview.IsValid() && __state != -1 && Player.m_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.m_userID == sender) is { } player)
+			if (__instance.m_nview.IsValid() && __state != -1 && isForaging(__instance) && Player.m_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.m_userID == sender) is { } player)
 			{
 				long pickedTime = __instance.m_nview.GetZDO().GetLong("picked_time");
 				__instance.m_nview.GetZDO().Set("picked_time", pickedTime - (long)(__instance.m_respawnTimeMinutes * TimeSpan.TicksPerMinute * (1 - 1 / respawnSpeedMultiplier.Value) * (double)player.m_nview.GetZDO().GetFloat("Foraging Skill Factor")));
@@ -164,7 +191,12 @@ public class Foraging : BaseUnityPlugin
 	{
 		private static void Postfix(Pickable __instance, ref string __result)
 		{
-			if (__instance.m_picked && respawnDisplayMinimumLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Foraging") >= respawnDisplayMinimumLevel.Value / 100f)
+			if (!__instance.m_nview.IsValid())
+			{
+				return;
+			}
+			
+			if (__instance is { m_picked: true, m_respawnTimeMinutes: > 0 } && !__instance.m_hideWhenPicked && respawnDisplayMinimumLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Foraging") >= respawnDisplayMinimumLevel.Value / 100f)
 			{
 				DateTime pickedTime = new(__instance.m_nview.GetZDO().GetLong("picked_time"));
 				TimeSpan respawnIn = TimeSpan.FromMinutes(__instance.m_respawnTimeMinutes) - (ZNet.instance.GetTime() - pickedTime);
