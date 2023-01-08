@@ -13,10 +13,11 @@ using Random = UnityEngine.Random;
 namespace Foraging;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInIncompatibility("org.bepinex.plugins.valheim_plus")]
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.1";
+	private const string ModVersion = "1.0.2";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -29,7 +30,7 @@ public class Foraging : BaseUnityPlugin
 	private static ConfigEntry<float> respawnSpeedMultiplier = null!;
 	private static ConfigEntry<float> experienceGainedFactor = null!;
 	private static ConfigEntry<int> experienceLoss = null!;
-	
+
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
 		ConfigEntry<T> configEntry = Config.Bind(group, name, value, description);
@@ -47,7 +48,7 @@ public class Foraging : BaseUnityPlugin
 		On = 1,
 		Off = 0
 	}
-	
+
 	private enum Scope
 	{
 		Foraging,
@@ -57,9 +58,10 @@ public class Foraging : BaseUnityPlugin
 
 	private class ConfigurationManagerAttributes
 	{
+		public int? Order;
 		[UsedImplicitly] public bool? ShowRangeAsPercent;
 	}
-	
+
 	private static Skill foraging = null!;
 
 	public void Awake()
@@ -70,20 +72,22 @@ public class Foraging : BaseUnityPlugin
 		foraging.Description.German("Erhöht die Beute während der Nahrungssuche und lässt Beeren und Pilze schneller nachwachsen.");
 		foraging.Configurable = false;
 
-		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
+		int order = 0;
+
+		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, new ConfigDescription("If on, the configuration is locked and can be changed by server admins only.", null, new ConfigurationManagerAttributes { Order = --order }));
 		configSync.AddLockingConfigEntry(serverConfigLocked);
-		foragingScope = config("2 - Foraging", "Foraging Scope", Scope.Foraging, new ConfigDescription("Foraging: Only applies to berries and mushrooms and the like.\nNo Crops: Applies to all pickables except for crops planted by a player.\nEverything: Applies to all pickables."));
-		foragingYieldFactor = config("2 - Foraging", "Foraging Yield Factor", 2f, new ConfigDescription("Foraging yield factor at skill level 100.", new AcceptableValueRange<float>(1f, 5f)));
-		respawnDisplayMinimumLevel = config("2 - Foraging", "Minimum Level Respawn Display", 30, new ConfigDescription("Skill level required to see a timer when pickables will respawn. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
-		massPickingRadius = config("2 - Foraging", "Maximum Mass Picking Range", 10, new ConfigDescription("Mass picking radius at skill level 100 in meters.", new AcceptableValueRange<int>(0, 20)));
-		respawnSpeedMultiplier = config("2 - Foraging", "Multiplier for Respawn Speed", 2f, new ConfigDescription("Multiplier for the respawn speed at skill level 100.", new AcceptableValueRange<float>(1f, 10f)));
-		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the foraging skill.", new AcceptableValueRange<float>(0.01f, 5f)));
+		foragingScope = config("2 - Foraging", "Foraging Scope", Scope.Foraging, new ConfigDescription("Foraging: Only applies to berries and mushrooms and the like.\nNo Crops: Applies to all pickables except for crops planted by a player.\nEverything: Applies to all pickables.", null, new ConfigurationManagerAttributes { Order = --order }));
+		foragingYieldFactor = config("2 - Foraging", "Foraging Yield Factor", 2f, new ConfigDescription("Foraging yield factor at skill level 100.", new AcceptableValueRange<float>(1f, 5f), new ConfigurationManagerAttributes { Order = --order }));
+		respawnDisplayMinimumLevel = config("2 - Foraging", "Minimum Level Respawn Display", 30, new ConfigDescription("Skill level required to see a timer when pickables will respawn. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false, Order = --order }));
+		massPickingRadius = config("2 - Foraging", "Maximum Mass Picking Range", 10, new ConfigDescription("Mass picking radius at skill level 100 in meters.", new AcceptableValueRange<int>(0, 20), new ConfigurationManagerAttributes { Order = --order }));
+		respawnSpeedMultiplier = config("2 - Foraging", "Multiplier for Respawn Speed", 2f, new ConfigDescription("Multiplier for the respawn speed at skill level 100.", new AcceptableValueRange<float>(1f, 10f), new ConfigurationManagerAttributes { Order = --order }));
+		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the foraging skill.", new AcceptableValueRange<float>(0.01f, 5f), new ConfigurationManagerAttributes { Order = --order }));
 		experienceGainedFactor.SettingChanged += (_, _) => foraging.SkillGainFactor = experienceGainedFactor.Value;
 		foraging.SkillGainFactor = experienceGainedFactor.Value;
-		experienceLoss = config("3 - Other", "Skill Experience Loss", 0, new ConfigDescription("How much experience to lose in the foraging skill on death.", new AcceptableValueRange<int>(0, 100)));
+		experienceLoss = config("3 - Other", "Skill Experience Loss", 0, new ConfigDescription("How much experience to lose in the foraging skill on death.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { Order = --order }));
 		experienceLoss.SettingChanged += (_, _) => foraging.SkillLoss = experienceLoss.Value;
 		foraging.SkillLoss = experienceLoss.Value;
-		
+
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
 		harmony.PatchAll(assembly);
@@ -94,14 +98,14 @@ public class Foraging : BaseUnityPlugin
 		switch (foragingScope.Value)
 		{
 			case Scope.Foraging:
-				return pickable.m_respawnTimeMinutes > 0 && pickable.m_itemPrefab.name != "Wood";
-			
+				return pickable.m_respawnTimeMinutes > 0 && pickable.m_itemPrefab.name != "Wood" && pickable.m_itemPrefab.name != "DragonEgg";
+
 			case Scope.NoCrops:
 				int itemLayer = LayerMask.NameToLayer("item");
 				int plantLayer = LayerMask.NameToLayer("piece_nonsolid");
-				int layer = pickable.gameObject.layer; 
+				int layer = pickable.gameObject.layer;
 				return layer != plantLayer && (layer != itemLayer || pickable.m_amount <= 1);
-			
+
 			default:
 				return true;
 		}
@@ -162,7 +166,7 @@ public class Foraging : BaseUnityPlugin
 						__state = __instance.m_amount;
 
 						int baseYield = Mathf.FloorToInt(foragingYieldFactor.Value);
-						__instance.m_amount *= baseYield + (Random.Range(0f, 1f) < foragingYieldFactor.Value - baseYield ? 0 : 1);
+						__instance.m_amount *= baseYield + (Random.Range(0f, 1f) < foragingYieldFactor.Value - baseYield ? 1 : 0);
 					}
 				}
 			}
@@ -195,7 +199,7 @@ public class Foraging : BaseUnityPlugin
 			{
 				return;
 			}
-			
+
 			if (__instance is { m_picked: true, m_respawnTimeMinutes: > 0 } && !__instance.m_hideWhenPicked && respawnDisplayMinimumLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Foraging") >= respawnDisplayMinimumLevel.Value / 100f)
 			{
 				DateTime pickedTime = new(__instance.m_nview.GetZDO().GetLong("picked_time"));
