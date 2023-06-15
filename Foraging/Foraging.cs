@@ -17,7 +17,7 @@ namespace Foraging;
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.4";
+	private const string ModVersion = "1.0.5";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -157,7 +157,7 @@ public class Foraging : BaseUnityPlugin
 
 			if (__instance.m_nview.IsValid() && isForaging(__instance))
 			{
-				if (Player.s_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.ID == sender) is { } player)
+				if (Player.s_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.UserID == sender) is { } player)
 				{
 					player.m_nview.InvokeRPC("Foraging IncreaseSkill", 1);
 
@@ -174,7 +174,7 @@ public class Foraging : BaseUnityPlugin
 
 		private static void Postfix(Pickable __instance, long sender, int? __state)
 		{
-			if (__instance.m_nview.IsValid() && __state != -1 && isForaging(__instance) && Player.s_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.ID == sender) is { } player)
+			if (__instance.m_nview.IsValid() && __state != -1 && isForaging(__instance) && Player.s_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.UserID == sender) is { } player)
 			{
 				long pickedTime = __instance.m_nview.GetZDO().GetLong("picked_time");
 				__instance.m_nview.GetZDO().Set("picked_time", pickedTime - (long)(__instance.m_respawnTimeMinutes * TimeSpan.TicksPerMinute * (1 - 1 / respawnSpeedMultiplier.Value) * (double)player.m_nview.GetZDO().GetFloat("Foraging Skill Factor")));
