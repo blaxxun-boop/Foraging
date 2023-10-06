@@ -26,7 +26,7 @@ public static class MassHarvest
 			// ReSharper disable once Unity.PreferNonAllocApi
 			foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, Player.m_localPlayer.GetSkillFactor("Foraging") * Foraging.massPickingRadius.Value, plantMask))
 			{
-				if ((collider.GetComponent<Pickable>() ?? collider.transform.parent?.GetComponent<Pickable>()) is { } pickable && pickable != __instance && Foraging.isForaging(pickable) && !pickable.m_picked)
+				if (collider.GetComponentInParent<Pickable>() is { } pickable && pickable != __instance && Foraging.isForaging(pickable) && !pickable.m_picked)
 				{
 					pickable.Interact(Player.m_localPlayer, false, false);
 				}
