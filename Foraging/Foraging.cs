@@ -17,7 +17,7 @@ namespace Foraging;
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.6";
+	private const string ModVersion = "1.0.7";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -58,7 +58,7 @@ public class Foraging : BaseUnityPlugin
 
 	private class ConfigurationManagerAttributes
 	{
-		public int? Order;
+		[UsedImplicitly] public int? Order;
 		[UsedImplicitly] public bool? ShowRangeAsPercent;
 	}
 
@@ -177,7 +177,7 @@ public class Foraging : BaseUnityPlugin
 			if (__instance.m_nview.IsValid() && __state != -1 && isForaging(__instance) && Player.s_players.FirstOrDefault(p => p.m_nview.GetZDO().m_uid.UserID == sender) is { } player)
 			{
 				long pickedTime = __instance.m_nview.GetZDO().GetLong("picked_time");
-				__instance.m_nview.GetZDO().Set("picked_time", pickedTime - (long)(__instance.m_respawnTimeMinutes * TimeSpan.TicksPerMinute * (1 - 1 / respawnSpeedMultiplier.Value) * (double)player.m_nview.GetZDO().GetFloat("Foraging Skill Factor")));
+				__instance.m_nview.GetZDO().Set("picked_time", Math.Max(DateTime.MinValue.Ticks, pickedTime - (long)(__instance.m_respawnTimeMinutes * TimeSpan.TicksPerMinute * (1 - 1 / respawnSpeedMultiplier.Value) * (double)player.m_nview.GetZDO().GetFloat("Foraging Skill Factor"))));
 			}
 		}
 
