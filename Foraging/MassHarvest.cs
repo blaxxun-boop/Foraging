@@ -21,7 +21,7 @@ public static class MassHarvest
 			
 			isPicked = true;
 
-			int plantMask = LayerMask.GetMask("item", "Default_small");
+			int plantMask = LayerMask.GetMask("item", "Default_small", "piece_nonsolid");
 
 			// ReSharper disable once Unity.PreferNonAllocApi
 			foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, Player.m_localPlayer.GetSkillFactor("Foraging") * Foraging.massPickingRadius.Value, plantMask))

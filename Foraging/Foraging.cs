@@ -17,7 +17,7 @@ namespace Foraging;
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.7";
+	private const string ModVersion = "1.0.8";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -200,7 +200,7 @@ public class Foraging : BaseUnityPlugin
 				return;
 			}
 
-			if (__instance is { m_picked: true, m_respawnTimeMinutes: > 0 } && __instance.transform != __instance.m_hideWhenPicked.transform.parent && __instance.gameObject != __instance.m_hideWhenPicked && respawnDisplayMinimumLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Foraging") >= respawnDisplayMinimumLevel.Value / 100f)
+			if (__instance is { m_picked: true, m_respawnTimeMinutes: > 0 } && __instance.GetComponentInChildren<Collider>() is not null && respawnDisplayMinimumLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Foraging") >= respawnDisplayMinimumLevel.Value / 100f)
 			{
 				DateTime pickedTime = new(__instance.m_nview.GetZDO().GetLong("picked_time"));
 				TimeSpan respawnIn = TimeSpan.FromMinutes(__instance.m_respawnTimeMinutes) - (ZNet.instance.GetTime() - pickedTime);
