@@ -17,7 +17,7 @@ namespace Foraging;
 public class Foraging : BaseUnityPlugin
 {
 	private const string ModName = "Foraging";
-	private const string ModVersion = "1.0.8";
+	private const string ModVersion = "1.0.9";
 	private const string ModGUID = "org.bepinex.plugins.foraging";
 
 	private static readonly ConfigSync configSync = new(ModName) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
